@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Club Rewards</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        h3 {
+            color: #555;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        p {
+            color: #555;
+            font-size: 1rem;
+            margin: 0.5rem 0;
+        }
+
+        #walletAddress, #rewards, #addMemberMessage {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        #addMemberMessage.error {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fitness Club Rewards</h1>
+
+        <!-- Connect Wallet -->
+        <button id="connectWallet">Connect Wallet</button>
+        <p id="walletAddress"></p>
+
+        <!-- Add Member Section (only for owner) -->
+        <h3>Add Member</h3>
+        <input type="text" id="memberAddress" placeholder="Member's Ethereum Address">
+        <button id="addMember">Add Member</button>
+        <p id="addMemberMessage"></p>
+
+        <!-- Check Rewards -->
+        <h3>Check Rewards</h3>
+        <button id="checkRewards">Check Rewards</button>
+        <p id="rewards"></p>
+
+        <!-- Redeem Rewards -->
+		<h3>Redeem Rewards</h3>
+		<input type="number" id="redeemAmount" placeholder="Enter amount to redeem">
+		<button id="redeemRewards">Redeem Rewards</button>
+
+    </div>
+
+    <script>
+        let web3;
+        let contract;
+        let userAddress;
+
+        const contractAddress = '0x3bd4f5f814c3c016a6cb0b608ccdf892a91702d5';
+        const abi = [
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_member",
+				"type": "address"
+			}
+		],
+		"name": "addMember",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_member",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_amount",
+				"type": "uint256"
+			}
+		],
+		"name": "addRewards",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_amount",
+				"type": "uint256"
+			}
+		],
+		"name": "redeemRewards",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "member",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "RewardsAdded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "member",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "RewardsRedeemed",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "checkRewards",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "members",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "rewards",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "exists",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+
+        window.addEventListener('load', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                web3 = new Web3(window.ethereum);
+
+                document.getElementById('connectWallet').addEventListener('click', async () => {
+                    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                    userAddress = accounts[0];
+                    document.getElementById('walletAddress').innerText = `Connected: ${userAddress}`;
+                    contract = new web3.eth.Contract(abi, contractAddress);
+                });
+
+                // Add Member
+                document.getElementById('addMember').addEventListener('click', async () => {
+                    const memberAddress = document.getElementById('memberAddress').value;
+
+                    if (web3.utils.isAddress(memberAddress)) {
+                        try {
+                            await contract.methods.addMember(memberAddress).send({ from: userAddress });
+                            document.getElementById('addMemberMessage').innerText = `Member added: ${memberAddress}`;
+                            document.getElementById('addMemberMessage').classList.remove('error');
+                        } catch (error) {
+                            document.getElementById('addMemberMessage').innerText = `Error: ${error.message}`;
+                            document.getElementById('addMemberMessage').classList.add('error');
+                        }
+                    } else {
+                        document.getElementById('addMemberMessage').innerText = "Invalid Ethereum address. Please enter a valid address.";
+                        document.getElementById('addMemberMessage').classList.add('error');
+                    }
+                });
+
+                // Check Rewards
+                document.getElementById('checkRewards').addEventListener('click', async () => {
+                    try {
+                        const rewards = await contract.methods.checkRewards().call({ from: userAddress });
+                        document.getElementById('rewards').innerText = `Your Rewards: ${rewards}`;
+                    } catch (error) {
+                        document.getElementById('rewards').innerText = `Error: ${error.message}`;
+                    }
+                });
+
+                // Redeem Rewards
+				document.getElementById('redeemRewards').addEventListener('click', async () => {
+    				const redeemAmount = document.getElementById('redeemAmount').value;
+
+    				if (redeemAmount > 0) {
+        				try {
+            				await contract.methods.redeemRewards(redeemAmount).send({ from: userAddress });
+            				alert(`Redeemed ${redeemAmount} rewards!`);
+        				} catch (error) {
+            				alert(`Error: ${error.message}`);
+        				}
+    				} else {
+        				alert('Please enter a valid amount to redeem.');
+    				}
+				});
+
+            } else {
+                alert('MetaMask is not installed');
+            }
+        });
+    </script>
+</body>
+</html>
