@@ -13,6 +13,7 @@ contract FitnessRewardToken is ERC20 {
     }
 
     mapping(address => Member) public members;
+    address[] public memberAddresses; // Array to keep track of member addresses
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can perform this action");
@@ -29,6 +30,7 @@ contract FitnessRewardToken is ERC20 {
     function addMember(address user) public onlyOwner {
         require(!members[user].exists, "User is already a member");
         members[user] = Member(true, 0); // New member with 0 initial rewards
+        memberAddresses.push(user); // Add the new member's address to the list
         totalMembers++;
     }
 
@@ -48,5 +50,14 @@ contract FitnessRewardToken is ERC20 {
     // View total number of members
     function getTotalMembers() public view returns (uint256) {
         return totalMembers;
+    }
+
+    // Function to get all members and their rewards
+    function getAllMembers() public view returns (address[] memory, uint256[] memory) {
+        uint256[] memory rewards = new uint256[](totalMembers);
+        for (uint256 i = 0; i < totalMembers; i++) {
+            rewards[i] = members[memberAddresses[i]].rewards;
+        }
+        return (memberAddresses, rewards);
     }
 }

@@ -5,6 +5,83 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fitness Reward System</title>
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    h2 {
+      color: #555;
+      margin-top: 20px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    button {
+      padding: 10px;
+      margin: 10px 0;
+      width: calc(100% - 22px);
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    #status {
+      font-weight: bold;
+      margin: 10px 0;
+      color: #d9534f; /* Bootstrap danger color */
+    }
+
+    .member-list {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #fff;
+    }
+
+    .member-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+    }
+
+    /* Responsive Design */
+    @media (min-width: 600px) {
+      body {
+        max-width: 600px;
+        margin: auto;
+        padding: 40px;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        font-size: 2.5em;
+      }
+    }
+  </style>
 </head>
 <body>
   <h1>Fitness Reward System</h1>
@@ -23,17 +100,17 @@
   <input type="number" id="rewardAmount" placeholder="Enter Reward Amount">
   <button id="rewardMember">Reward Member</button>
 
-  <!-- View total number of members -->
-  <h2>Total Members</h2>
-  <button id="viewMembers">View Total Members</button>
-  <p id="totalMembers"></p>
+  <!-- View all members and their rewards -->
+  <h2>Members and Rewards</h2>
+  <button id="viewMembers">View Members and Rewards</button>
+  <div id="membersList" class="member-list"></div>
 
   <script>
     let web3;
     let contract;
     let userAccount;
 
-    const contractAddress = '0xc33ecc35560335a956cd36b5a943148a72f0c84f';
+    const contractAddress = '0x2913cb03d54ab7969b1b3012678bf72bbf1d45d6';
     const contractABI = [
 	{
 		"inputs": [
@@ -341,6 +418,24 @@
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "getAllMembers",
+		"outputs": [
+			{
+				"internalType": "address[]",
+				"name": "",
+				"type": "address[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -367,6 +462,25 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "memberAddresses",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -472,7 +586,6 @@
           document.getElementById('status').textContent = "MetaMask Connected";
           userAccount = (await web3.eth.getAccounts())[0];
           contract = new web3.eth.Contract(contractABI, contractAddress);
-		  console.log(contract.methods);
         } catch (error) {
           document.getElementById('status').textContent = "MetaMask connection failed!";
         }
@@ -499,7 +612,7 @@
     async function rewardMember() {
       const rewardAddress = document.getElementById('rewardAddress').value;
       const rewardAmount = document.getElementById('rewardAmount').value;
-      
+
       if (rewardAddress && rewardAmount && contract) {
         try {
           await contract.methods.rewardUser(rewardAddress, web3.utils.toWei(rewardAmount, 'ether')).send({ from: userAccount });
@@ -511,23 +624,45 @@
       }
     }
 
-    // View total members
-    async function viewTotalMembers() {
-      if (contract) {
+	document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById('viewMembers').onclick = async () => {
         try {
-          const total = await contract.methods.getTotalMembers().call();
-          document.getElementById('totalMembers').textContent = `Total Members: ${total}`;
+            // Fetch total members
+            const totalMembers = await contract.methods.getTotalMembers().call();
+
+            // Fetch members and their rewards
+            const result = await contract.methods.getAllMembers().call();
+
+            // Check if the result is the expected object
+            if (result && result[0] && result[1]) {
+                const addresses = result[0];  // Access the addresses array (stored at '0')
+                const rewards = result[1];    // Access the rewards array (stored at '1')
+
+                // Build the members list
+                let membersList = '<h2>Members and Rewards</h2>';
+                for (let i = 0; i < totalMembers; i++) {
+                    membersList += `<p>Address: ${addresses[i]}, Reward: ${rewards[i]}</p>`;
+                }
+
+                // Display the members and rewards in the 'membersList' div
+                document.getElementById('membersList').innerHTML = membersList;
+            } else {
+                // Handle unexpected result format
+                console.error("Unexpected result format:", result);
+                document.getElementById('membersList').innerHTML = "Error fetching members data.";
+            }
         } catch (error) {
-          console.error(error);
-          alert('Failed to retrieve total members');
+            // Handle error in fetching members
+            console.error("Error fetching members:", error);
         }
-      }
-    }
+    };
+});
+
+
 
     document.getElementById('connect').addEventListener('click', connectMetaMask);
     document.getElementById('addMember').addEventListener('click', addMember);
     document.getElementById('rewardMember').addEventListener('click', rewardMember);
-    document.getElementById('viewMembers').addEventListener('click', viewTotalMembers);
   </script>
 </body>
 </html>
