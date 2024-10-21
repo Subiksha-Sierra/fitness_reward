@@ -1,52 +1,52 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract FitnessClubRewards {
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
+contract FitnessRewardToken is ERC20 {
     address public owner;
+    uint256 public totalMembers;
 
     struct Member {
-        uint256 rewards;
         bool exists;
+        uint256 rewards;
     }
 
     mapping(address => Member) public members;
 
-    event RewardsAdded(address indexed member, uint256 amount);
-    event RewardsRedeemed(address indexed member, uint256 amount);
-
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only the owner can perform this action");
+        require(msg.sender == owner, "Only owner can perform this action");
         _;
     }
 
-    modifier onlyMember() {
-        require(members[msg.sender].exists, "You are not a member");
-        _;
-    }
-
-    constructor() {
+    constructor() ERC20("FitnessRewardToken", "FRT") {
         owner = msg.sender;
+        _mint(owner, 1000000 * 10 ** decimals()); // Initial supply to owner
+        totalMembers = 0;
     }
 
-    function addMember(address _member) public onlyOwner {
-        require(!members[_member].exists, "Member already exists");
-        members[_member] = Member(0, true);
+    // Add new member
+    function addMember(address user) public onlyOwner {
+        require(!members[user].exists, "User is already a member");
+        members[user] = Member(true, 0); // New member with 0 initial rewards
+        totalMembers++;
     }
 
-    function addRewards(address _member, uint256 _amount) public onlyOwner {
-        require(members[_member].exists, "Member does not exist");
-        members[_member].rewards += _amount;
-        emit RewardsAdded(_member, _amount);
+    // Reward member
+    function rewardUser(address user, uint256 amount) public onlyOwner {
+        require(members[user].exists, "User is not a member");
+        _transfer(owner, user, amount); // Transfer tokens from owner to user
+        members[user].rewards += amount; // Update user's reward balance
     }
 
-    function redeemRewards(uint256 _amount) public onlyMember {
-        require(members[msg.sender].rewards >= _amount, "Insufficient rewards");
-        members[msg.sender].rewards -= _amount;
-        emit RewardsRedeemed(msg.sender, _amount);
+    // View member rewards
+    function getMemberRewards(address user) public view returns (uint256) {
+        require(members[user].exists, "User is not a member");
+        return members[user].rewards;
     }
 
-    function checkRewards() public view onlyMember returns (uint256) {
-        return members[msg.sender].rewards;
+    // View total number of members
+    function getTotalMembers() public view returns (uint256) {
+        return totalMembers;
     }
 }

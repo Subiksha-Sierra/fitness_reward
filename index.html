@@ -1,123 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fitness Club Rewards</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .container {
-            background-color: white;
-            padding: 2rem;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            border-radius: 10px;
-            max-width: 400px;
-            width: 100%;
-        }
-
-        h1 {
-            text-align: center;
-            color: #333;
-            font-size: 1.8rem;
-            margin-bottom: 1.5rem;
-        }
-
-        h3 {
-            color: #555;
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 5px;
-            font-size: 1rem;
-            cursor: pointer;
-            width: 100%;
-            margin-bottom: 1rem;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        input {
-            width: 100%;
-            padding: 0.6rem;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin-bottom: 1rem;
-            font-size: 1rem;
-        }
-
-        p {
-            color: #555;
-            font-size: 1rem;
-            margin: 0.5rem 0;
-        }
-
-        #walletAddress, #rewards, #addMemberMessage {
-            font-weight: bold;
-            color: #28a745;
-        }
-
-        #addMemberMessage.error {
-            color: #dc3545;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fitness Reward System</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Fitness Club Rewards</h1>
+  <h1>Fitness Reward System</h1>
 
-        <!-- Connect Wallet -->
-        <button id="connectWallet">Connect Wallet</button>
-        <p id="walletAddress"></p>
+  <button id="connect">Connect to MetaMask</button>
+  <p id="status"></p>
 
-        <!-- Add Member Section (only for owner) -->
-        <h3>Add Member</h3>
-        <input type="text" id="memberAddress" placeholder="Member's Ethereum Address">
-        <button id="addMember">Add Member</button>
-        <p id="addMemberMessage"></p>
+  <!-- Owner can add a member -->
+  <h2>Add Member</h2>
+  <input type="text" id="memberAddress" placeholder="Enter Member Address">
+  <button id="addMember">Add Member</button>
 
-        <!-- Check Rewards -->
-        <h3>Check Rewards</h3>
-        <button id="checkRewards">Check Rewards</button>
-        <p id="rewards"></p>
+  <!-- Reward member -->
+  <h2>Reward Member</h2>
+  <input type="text" id="rewardAddress" placeholder="Enter Member Address">
+  <input type="number" id="rewardAmount" placeholder="Enter Reward Amount">
+  <button id="rewardMember">Reward Member</button>
 
-        <!-- Redeem Rewards -->
-		<h3>Redeem Rewards</h3>
-		<input type="number" id="redeemAmount" placeholder="Enter amount to redeem">
-		<button id="redeemRewards">Redeem Rewards</button>
+  <!-- View total number of members -->
+  <h2>Total Members</h2>
+  <button id="viewMembers">View Total Members</button>
+  <p id="totalMembers"></p>
 
-    </div>
+  <script>
+    let web3;
+    let contract;
+    let userAccount;
 
-    <script>
-        let web3;
-        let contract;
-        let userAddress;
-
-        const contractAddress = '0x3bd4f5f814c3c016a6cb0b608ccdf892a91702d5';
-        const abi = [
+    const contractAddress = '0xc33ecc35560335a956cd36b5a943148a72f0c84f';
+    const contractABI = [
 	{
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "_member",
+				"name": "user",
 				"type": "address"
 			}
 		],
@@ -130,30 +52,23 @@
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "_member",
+				"name": "spender",
 				"type": "address"
 			},
 			{
 				"internalType": "uint256",
-				"name": "_amount",
+				"name": "value",
 				"type": "uint256"
 			}
 		],
-		"name": "addRewards",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
+		"name": "approve",
+		"outputs": [
 			{
-				"internalType": "uint256",
-				"name": "_amount",
-				"type": "uint256"
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
 			}
 		],
-		"name": "redeemRewards",
-		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
@@ -163,23 +78,90 @@
 		"type": "constructor"
 	},
 	{
-		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
 				"internalType": "address",
-				"name": "member",
+				"name": "spender",
 				"type": "address"
 			},
 			{
-				"indexed": false,
 				"internalType": "uint256",
-				"name": "amount",
+				"name": "allowance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "needed",
 				"type": "uint256"
 			}
 		],
-		"name": "RewardsAdded",
-		"type": "event"
+		"name": "ERC20InsufficientAllowance",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "balance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "needed",
+				"type": "uint256"
+			}
+		],
+		"name": "ERC20InsufficientBalance",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "approver",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidApprover",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "receiver",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidReceiver",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidSender",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidSpender",
+		"type": "error"
 	},
 	{
 		"anonymous": false,
@@ -187,22 +169,199 @@
 			{
 				"indexed": true,
 				"internalType": "address",
-				"name": "member",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "spender",
 				"type": "address"
 			},
 			{
 				"indexed": false,
 				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Approval",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
 				"name": "amount",
 				"type": "uint256"
 			}
 		],
-		"name": "RewardsRedeemed",
+		"name": "rewardUser",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Transfer",
 		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			}
+		],
+		"name": "allowance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "balanceOf",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"inputs": [],
-		"name": "checkRewards",
+		"name": "decimals",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "getMemberRewards",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getTotalMembers",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -224,14 +383,27 @@
 		"name": "members",
 		"outputs": [
 			{
-				"internalType": "uint256",
-				"name": "rewards",
-				"type": "uint256"
-			},
-			{
 				"internalType": "bool",
 				"name": "exists",
 				"type": "bool"
+			},
+			{
+				"internalType": "uint256",
+				"name": "rewards",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "name",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
 			}
 		],
 		"stateMutability": "view",
@@ -249,69 +421,113 @@
 		],
 		"stateMutability": "view",
 		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "symbol",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalMembers",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalSupply",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	}
 ];
 
-        window.addEventListener('load', async () => {
-            if (typeof window.ethereum !== 'undefined') {
-                web3 = new Web3(window.ethereum);
+    // Connect to MetaMask
+    async function connectMetaMask() {
+      if (window.ethereum) {
+        try {
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          web3 = new Web3(window.ethereum);
+          document.getElementById('status').textContent = "MetaMask Connected";
+          userAccount = (await web3.eth.getAccounts())[0];
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+		  console.log(contract.methods);
+        } catch (error) {
+          document.getElementById('status').textContent = "MetaMask connection failed!";
+        }
+      } else {
+        alert("Please install MetaMask");
+      }
+    }
 
-                document.getElementById('connectWallet').addEventListener('click', async () => {
-                    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-                    userAddress = accounts[0];
-                    document.getElementById('walletAddress').innerText = `Connected: ${userAddress}`;
-                    contract = new web3.eth.Contract(abi, contractAddress);
-                });
+    // Add member
+    async function addMember() {
+      const memberAddress = document.getElementById('memberAddress').value;
+      if (memberAddress && contract) {
+        try {
+          await contract.methods.addMember(memberAddress).send({ from: userAccount });
+          alert('Member added successfully');
+        } catch (error) {
+          console.error(error);
+          alert('Failed to add member');
+        }
+      }
+    }
 
-                // Add Member
-                document.getElementById('addMember').addEventListener('click', async () => {
-                    const memberAddress = document.getElementById('memberAddress').value;
+    // Reward member
+    async function rewardMember() {
+      const rewardAddress = document.getElementById('rewardAddress').value;
+      const rewardAmount = document.getElementById('rewardAmount').value;
+      
+      if (rewardAddress && rewardAmount && contract) {
+        try {
+          await contract.methods.rewardUser(rewardAddress, web3.utils.toWei(rewardAmount, 'ether')).send({ from: userAccount });
+          alert('Member rewarded successfully');
+        } catch (error) {
+          console.error(error);
+          alert('Failed to reward member');
+        }
+      }
+    }
 
-                    if (web3.utils.isAddress(memberAddress)) {
-                        try {
-                            await contract.methods.addMember(memberAddress).send({ from: userAddress });
-                            document.getElementById('addMemberMessage').innerText = `Member added: ${memberAddress}`;
-                            document.getElementById('addMemberMessage').classList.remove('error');
-                        } catch (error) {
-                            document.getElementById('addMemberMessage').innerText = `Error: ${error.message}`;
-                            document.getElementById('addMemberMessage').classList.add('error');
-                        }
-                    } else {
-                        document.getElementById('addMemberMessage').innerText = "Invalid Ethereum address. Please enter a valid address.";
-                        document.getElementById('addMemberMessage').classList.add('error');
-                    }
-                });
+    // View total members
+    async function viewTotalMembers() {
+      if (contract) {
+        try {
+          const total = await contract.methods.getTotalMembers().call();
+          document.getElementById('totalMembers').textContent = `Total Members: ${total}`;
+        } catch (error) {
+          console.error(error);
+          alert('Failed to retrieve total members');
+        }
+      }
+    }
 
-                // Check Rewards
-                document.getElementById('checkRewards').addEventListener('click', async () => {
-                    try {
-                        const rewards = await contract.methods.checkRewards().call({ from: userAddress });
-                        document.getElementById('rewards').innerText = `Your Rewards: ${rewards}`;
-                    } catch (error) {
-                        document.getElementById('rewards').innerText = `Error: ${error.message}`;
-                    }
-                });
-
-                // Redeem Rewards
-				document.getElementById('redeemRewards').addEventListener('click', async () => {
-    				const redeemAmount = document.getElementById('redeemAmount').value;
-
-    				if (redeemAmount > 0) {
-        				try {
-            				await contract.methods.redeemRewards(redeemAmount).send({ from: userAddress });
-            				alert(`Redeemed ${redeemAmount} rewards!`);
-        				} catch (error) {
-            				alert(`Error: ${error.message}`);
-        				}
-    				} else {
-        				alert('Please enter a valid amount to redeem.');
-    				}
-				});
-
-            } else {
-                alert('MetaMask is not installed');
-            }
-        });
-    </script>
+    document.getElementById('connect').addEventListener('click', connectMetaMask);
+    document.getElementById('addMember').addEventListener('click', addMember);
+    document.getElementById('rewardMember').addEventListener('click', rewardMember);
+    document.getElementById('viewMembers').addEventListener('click', viewTotalMembers);
+  </script>
 </body>
 </html>
